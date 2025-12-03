@@ -66,9 +66,10 @@ struct Taleb5edma_cursorApp: App {
                 if authService.isAuthenticated {
                     // L'utilisateur est authentifié : afficher le contenu principal de l'application
                     // ContentView gère la navigation vers le Dashboard ou l'Onboarding
-                    ContentView()
-                        .environmentObject(authService)
-                } else {
+                    AppRootView {
+                        ContentView()
+                            .environmentObject(authService)
+                    }                } else {
                     // L'utilisateur n'est pas authentifié : afficher le flux d'authentification
                     // AuthCoordinatorView gère la navigation entre Login, SignUp et Verification
                     AuthCoordinatorView()

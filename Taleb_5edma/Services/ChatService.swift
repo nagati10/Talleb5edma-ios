@@ -92,9 +92,18 @@ class ChatService: ObservableObject {
         }
         
         var httpRequest = try createRequest(url: url, method: "POST")
-        httpRequest.httpBody = try JSONEncoder().encode(request)
+        
+        // Encode and log the request
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        let requestData = try encoder.encode(request)
+        httpRequest.httpBody = requestData
         
         print("🔵 Create/Get Chat - URL: \(url.absoluteString)")
+        print("🔵 Create/Get Chat - Headers: \(httpRequest.allHTTPHeaderFields ?? [:])")
+        if let bodyString = String(data: requestData, encoding: .utf8) {
+            print("🔵 Create/Get Chat - Request Body: \(bodyString)")
+        }
         
         let (data, response) = try await session.data(for: httpRequest)
         
@@ -104,11 +113,24 @@ class ChatService: ObservableObject {
         
         print("🔵 Create/Get Chat - Status Code: \(httpResponse.statusCode)")
         
+        // Log the response for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🔵 Create/Get Chat - Response: \(responseString)")
+        }
+        
         guard (200...299).contains(httpResponse.statusCode) else {
+            // Try to decode error message
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let errorMessage = errorJson["message"] as? String {
+                print("🔴 Create/Get Chat - Server Error: \(errorMessage)")
+            }
+            
             if httpResponse.statusCode == 401 {
                 throw ChatError.notAuthenticated
             } else if httpResponse.statusCode == 404 {
                 throw ChatError.notFound
+            } else if httpResponse.statusCode == 400 {
+                throw ChatError.invalidData
             }
             throw ChatError.serverError(httpResponse.statusCode)
         }
@@ -145,6 +167,36 @@ class ChatService: ObservableObject {
         
         let chats = try makeJSONDecoder().decode([Chat].self, from: data)
         print("✅ Get My Chats - Success: \(chats.count) chats")
+        return chats
+    }
+    
+    /// Récupère tous les chats de l'utilisateur avec informations détaillées (pour les organisations)
+    func getMyChatsDetailed() async throws -> [ChatModels.GetUserChatsResponse] {
+        guard let url = URL(string: APIConfig.getMyChatsEndpoint) else {
+            throw ChatError.networkError
+        }
+        
+        let request = try createRequest(url: url, method: "GET")
+        
+        print("🔵 Get My Chats Detailed - URL: \(url.absoluteString)")
+        
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ChatError.invalidResponse
+        }
+        
+        print("🔵 Get My Chats Detailed - Status Code: \(httpResponse.statusCode)")
+        
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 401 {
+                throw ChatError.notAuthenticated
+            }
+            throw ChatError.serverError(httpResponse.statusCode)
+        }
+        
+        let chats = try makeJSONDecoder().decode([ChatModels.GetUserChatsResponse].self, from: data)
+        print("✅ Get My Chats Detailed - Success: \(chats.count) chats")
         return chats
     }
     
@@ -404,6 +456,10 @@ class ChatService: ObservableObject {
     }
     
     /// Récupère les messages d'un chat avec pagination
+    // In ChatService.swift - Update the getChatMessages method:
+
+    /// Récupère les messages d'un chat avec pagination
+    /// Récupère les messages d'un chat avec pagination
     func getChatMessages(chatId: String, page: Int? = nil, limit: Int? = nil) async throws -> PaginatedMessagesResponse {
         guard let url = URL(string: APIConfig.getChatMessagesEndpoint(chatId: chatId, page: page, limit: limit)) else {
             throw ChatError.networkError
@@ -421,6 +477,11 @@ class ChatService: ObservableObject {
         
         print("🔵 Get Chat Messages - Status Code: \(httpResponse.statusCode)")
         
+        // Log the raw response for debugging
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("🔵 Get Chat Messages - Raw Response: \(responseString)")
+        }
+        
         guard (200...299).contains(httpResponse.statusCode) else {
             if httpResponse.statusCode == 401 {
                 throw ChatError.notAuthenticated
@@ -430,23 +491,43 @@ class ChatService: ObservableObject {
             throw ChatError.serverError(httpResponse.statusCode)
         }
         
-        // Le backend peut renvoyer soit un tableau de messages, soit un objet paginé
-        // On essaie d'abord l'objet paginé, sinon on crée un objet paginé à partir du tableau
-        if let paginatedResponse = try? makeJSONDecoder().decode(PaginatedMessagesResponse.self, from: data) {
-            print("✅ Get Chat Messages - Success: \(paginatedResponse.messages.count) messages")
+        do {
+            // Try to decode as the updated PaginatedMessagesResponse
+            let paginatedResponse = try makeJSONDecoder().decode(PaginatedMessagesResponse.self, from: data)
+            print("✅ Get Chat Messages - Success: \(paginatedResponse.messages.count) messages, total: \(paginatedResponse.total)")
             return paginatedResponse
-        } else if let messages = try? makeJSONDecoder().decode([Message].self, from: data) {
-            // Si c'est juste un tableau, on crée une réponse paginée
-            let paginatedResponse = PaginatedMessagesResponse(
-                messages: messages,
-                total: messages.count,
-                page: page ?? 1,
-                limit: limit ?? messages.count,
-                hasMore: false
-            )
-            print("✅ Get Chat Messages - Success: \(messages.count) messages")
-            return paginatedResponse
-        } else {
+        } catch {
+            print("🔴 Failed to decode as PaginatedMessagesResponse: \(error)")
+            
+            // If decoding fails, try to create a basic response from what we can parse
+            if let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                print("🟡 Creating fallback response from JSON object")
+                
+                let messagesArray = jsonObject["messages"] as? [[String: Any]] ?? []
+                let total = jsonObject["total"] as? Int ?? messagesArray.count
+                
+                // Convert the array of dictionaries to Message objects if possible
+                var messages: [Message] = []
+                
+                for messageDict in messagesArray {
+                    if let messageData = try? JSONSerialization.data(withJSONObject: messageDict),
+                       let message = try? makeJSONDecoder().decode(Message.self, from: messageData) {
+                        messages.append(message)
+                    }
+                }
+                
+                let fallbackResponse = PaginatedMessagesResponse(
+                    messages: messages,
+                    total: total,
+                    page: page,
+                    limit: limit,
+                    hasMore: false
+                )
+                
+                print("✅ Get Chat Messages - Fallback Success: \(messages.count) messages")
+                return fallbackResponse
+            }
+            
             throw ChatError.decodingError
         }
     }

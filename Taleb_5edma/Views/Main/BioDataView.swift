@@ -1,179 +1,255 @@
-// BioDataView.swift
+//
+//  BioDataView.swift
+//  Taleb_5edma
+//
+
 import SwiftUI
 
 struct BioDataView: View {
     @ObservedObject var viewModel: ProfileViewModel
     @Environment(\.dismiss) private var dismiss
-    // Champs éditables reflétant le formulaire utilisateur
-    @State private var nom: String = ""
-    @State private var contact: String = ""
+    @EnvironmentObject var authService: AuthService
+    @State private var showAICVAnalysis = false
+    
+    // Champs éditables
+    @State private var name: String = ""
+    @State private var email: String = ""
+    @State private var phone: String = ""
+    @State private var joinedAt: String = "08 novembre 2025"
+    
+    // Pour savoir si quelque chose a changé
+    @State private var initialName: String = ""
+    @State private var initialPhone: String = ""
+    
+    private var hasChanges: Bool {
+        (name != initialName || phone != initialPhone)
+        && !name.isEmpty
+        && !phone.isEmpty
+    }
     
     var body: some View {
         ZStack {
-            AppColors.backgroundGray
-                .ignoresSafeArea()
+            // Background dégradé
+            LinearGradient(
+                colors: [AppColors.darkRed, AppColors.primaryRed],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
             
-            if viewModel.isLoading {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .tint(AppColors.primaryRed)
-            } else {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        // Header
-                        bioDataHeader
+            ScrollView {
+                VStack {
+                    Spacer(minLength: 40)
+                    
+                    // Carte principale
+                    VStack(spacing: 22) {
                         
-                        // Form
-                        bioDataForm
+                        // Titre
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(" profil" )
+                                .font(.largeTitle)
+                                .fontWeight(.heavy)
+                                .foregroundColor(AppColors.black)
+                            
+                            Text("Mettre à jour vos informations personnelles")
+                                .font(.subheadline)
+                                .foregroundColor(AppColors.mediumGray)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        // Update Button
-                        updateButton
+                        // Champs
+                        VStack(spacing: 16) {
+                            fieldRow(
+                                label: "Name",
+                                systemIcon: "person.fill",
+                                text: $name,
+                                editable: true
+                            )
+                            
+                            fieldRow(
+                                label: "Email",
+                                systemIcon: "envelope.fill",
+                                text: $email,
+                                editable: false
+                            )
+                            
+                            fieldRow(
+                                label: "Phone Number",
+                                systemIcon: "phone.fill",
+                                text: $phone,
+                                editable: true,
+                                keyboardType: .phonePad
+                            )
+                            
+                            // Joined at
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Joined at")
+                                    .font(.caption)
+                                    .foregroundColor(AppColors.mediumGray)
+                                
+                                Text(joinedAt)
+                                    .font(.subheadline)
+                                    .foregroundColor(AppColors.black)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical)
+                                    .background(
+                                        Capsule()
+                                            .fill(AppColors.white)
+                                            .shadow(
+                                                color: .black.opacity(0.05),
+                                                radius: 3,
+                                                x: 0,
+                                                y: 1
+                                            )
+                                    )
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                         
-                        Spacer()
+                        // Boutons
+                        VStack(spacing: 14) {
+                            Button {
+                                showAICVAnalysis = true
+                            } label: {
+                                Text("Analyser mon CV avec l'IA")
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(
+                                        LinearGradient(
+                                            colors: [AppColors.primaryRed, AppColors.darkRed],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .foregroundColor(.white)
+                                    .cornerRadius(14)
+                            }
+                            
+                           
+                            
+                            Button {
+                                saveChanges()
+                            } label: {
+                                Text("Save Changes")
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(
+                                        AppColors.lightGray.opacity(hasChanges ? 1.0 : 0.7)
+                                    )
+                                    .foregroundColor(
+                                        hasChanges ? AppColors.black : AppColors.mediumGray
+                                    )
+                                    .cornerRadius(14)
+                            }
+                            .disabled(!hasChanges)
+                        }
                     }
+                    .padding(24)
+                    .background(
+                        AppColors.white
+                            .opacity(0.96)
+                            .cornerRadius(26)
+                    )
+                    .shadow(color: .black.opacity(0.18), radius: 14, x: 0, y: 6)
+                    .padding(.horizontal, 20)
                 }
             }
         }
-        .navigationTitle("Bio-data")
-        .navigationBarTitleDisplayMode(.large)
-        .alert("Erreur", isPresented: $viewModel.showError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(viewModel.errorMessage ?? "Une erreur est survenue")
-        }
-        .alert("Succès", isPresented: $viewModel.showSuccess) {
-            Button("OK", role: .cancel) {
-                // Retourner à l'écran précédent après succès
-                dismiss()
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.title3)
+                        .foregroundColor(.white)
+                        .padding( .leading, 16)
+                        .background(
+                            Circle()
+                                .fill(Color.white.opacity(0.15))
+                        )
+                }
             }
-        } message: {
-            Text(viewModel.successMessage ?? "Profil mis à jour avec succès")
         }
+        .toolbarBackground(.hidden, for: .navigationBar)
         .onAppear {
             loadUserData()
         }
-    }
-    
-    private var bioDataHeader: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(viewModel.currentUser?.nom ?? "")
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(AppColors.black)
-            
-            Text(viewModel.currentUser?.email ?? "")
-                .font(.body)
-                .foregroundColor(AppColors.mediumGray)
+        .fullScreenCover(isPresented: $showAICVAnalysis) {
+            AICVAnalysisView()
+                .environmentObject(authService)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(AppColors.white)
     }
     
-    private var bioDataForm: some View {
-        VStack(spacing: 0) {
-            // Nom complet
-            formField(
-                title: "Nom complet",
-                text: $nom,
-                placeholder: "Entrez votre nom complet"
-            )
-            
-            // Contact
-            formField(
-                title: "Numéro de téléphone",
-                text: $contact,
-                placeholder: "Entrez votre numéro",
-                keyboardType: .phonePad
-            )
-            
-            // Email (non modifiable - lecture seule)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Email")
-                    .font(.caption)
-                    .foregroundColor(AppColors.mediumGray)
-                
-                Text(viewModel.currentUser?.email ?? "Non disponible")
-                    .padding()
-                    .background(AppColors.lightGray)
-                    .cornerRadius(8)
-                    .foregroundColor(AppColors.mediumGray)
-            }
-            .padding()
-            .background(AppColors.white)
-        }
-        .padding(.top, 1)
-    }
+    // MARK: - Sous-vues
     
-    private func formField(
-        title: String,
+    private func fieldRow(
+        label: String,
+        systemIcon: String,
         text: Binding<String>,
-        placeholder: String,
+        editable: Bool,
         keyboardType: UIKeyboardType = .default
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
                 .font(.caption)
                 .foregroundColor(AppColors.mediumGray)
             
-            TextField(placeholder, text: text)
-                .padding()
-                .background(AppColors.lightGray)
-                .cornerRadius(8)
-                .keyboardType(keyboardType)
+            HStack(spacing: 10) {
+                Image(systemName: systemIcon)
+                    .foregroundColor(AppColors.black)
+                    .frame(width: 24)
+                
+                if editable {
+                    TextField(label, text: text)
+                        .keyboardType(keyboardType)
+                        .textInputAutocapitalization(.none)
+                        .autocorrectionDisabled(true)
+                } else {
+                    Text(text.wrappedValue)
+                        .foregroundColor(AppColors.mediumGray)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(AppColors.white)
+            )
         }
-        .padding()
-        .background(AppColors.white)
     }
     
-    private var updateButton: some View {
-        Button(action: {
-            updateProfile()
-        }) {
-            Text("Mettre à jour le profil")
-                .font(.headline)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    LinearGradient(
-                        colors: [AppColors.primaryRed, AppColors.darkRed],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(10)
-                .padding()
-        }
-        .padding(.top, 24)
-        .disabled(nom.isEmpty || contact.isEmpty || viewModel.isLoading)
-        .opacity((nom.isEmpty || contact.isEmpty || viewModel.isLoading) ? 0.6 : 1.0)
-    }
+    // MARK: - Logic
     
     private func loadUserData() {
         if let user = viewModel.currentUser {
-            nom = user.nom
-            contact = user.contact
+            name = user.nom
+            email = user.email
+            phone = user.contact
+            
+            initialName = user.nom
+            initialPhone = user.contact
         }
     }
     
-    private func updateProfile() {
-        guard !nom.isEmpty, !contact.isEmpty else {
-            viewModel.errorMessage = "Veuillez remplir tous les champs"
-            viewModel.showError = true
-            return
-        }
-        
-        // Ne pas fermer l'écran immédiatement - attendre la réponse de l'API
-        viewModel.updateUserProfile(nom: nom, contact: contact)
-        
-        // Note: L'écran se fermera automatiquement quand l'utilisateur cliquera sur "OK"
-        // dans l'alerte de succès grâce au dismiss() dans le .alert
+    private func saveChanges() {
+        viewModel.updateUserProfile(nom: name, contact: phone)
     }
 }
 
 #Preview {
-    NavigationView {
-        BioDataView(viewModel: ProfileViewModel(authService: AuthService()))
+    let auth = AuthService()
+    let vm = ProfileViewModel(authService: auth)
+    
+    return NavigationStack {
+        BioDataView(viewModel: vm)
+            .environmentObject(auth)
     }
 }

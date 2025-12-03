@@ -28,7 +28,7 @@ struct APIConfig {
     /// Mode de développement (true = local, false = production)
     /// Changez cette valeur pour basculer entre local et production
     /// ✅ Pour utiliser le backend Render, changez cette valeur à false
-    static let isDevelopment: Bool = true // 🔧 Changez à false pour utiliser le backend Render
+    static let isDevelopment: Bool = false // 🔧 Changez à false pour utiliser le backend Render
     
     // MARK: - Base URL
     
@@ -48,7 +48,7 @@ struct APIConfig {
     /// URL de base pour la production (Render)
     /// Format : https://talleb-5edma.onrender.com
     /// ✅ Backend déployé sur Render
-    /// 
+    ///
     /// 🔧 CONFIGURATION IMPORTANTE:
     /// Si le backend retourne 404, essayez de changer cette valeur :
     /// - Avec préfixe: "https://talleb-5edma.onrender.com/api" (et enlever /api des endpoints)
@@ -384,7 +384,19 @@ struct APIConfig {
     
     /// Endpoint pour analyser la routine avec IA (POST /ai/routine/analyze)
     static var analyzeRoutineEndpoint: String {
-        return endpoint("/ai/routine/analyze")
+        return endpoint("/cv-ai/analyze")
+    }
+    
+    // MARK: - AICV Endpoints
+    
+    /// Endpoint pour analyser un CV avec IA (POST /cv-ai/extract-cv)
+    static var analyzeCVEndpoint: String {
+        return endpoint("/cv-ai/extract-cv")
+    }
+    
+    /// Endpoint pour enregistrer le profil depuis un CV (PATCH /user/me/cv/profile)
+    static var saveCVToProfileEndpoint: String {
+        return endpoint("/user/me/cv/profile")
     }
     
     // MARK: - Chat Endpoints

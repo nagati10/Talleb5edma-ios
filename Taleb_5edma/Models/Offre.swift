@@ -26,9 +26,21 @@ struct Offre: Codable, Identifiable {
     let images: [String]?
     let viewCount: Int?
     let likeCount: Int?
-    let userId: String?
+    let userId: String?  // This maps to "createdBy" from backend
     let createdAt: Date?
     let updatedAt: Date?
+    
+    // New fields from your MongoDB structure
+    let createdBy: CreatedBy?
+    let days: Int?
+    let likedBy: [String]?
+    let acceptedUsers: [String]?
+    let blockedUsers: [String]?
+    
+    // Computed property to easily access the entreprise ID
+    var entrepriseId: String? {
+        return createdBy?.id ?? userId
+    }
     
     enum CodingKeys: String, CodingKey {
         case id = "_id"
@@ -50,10 +62,14 @@ struct Offre: Codable, Identifiable {
         case userId
         case createdAt
         case updatedAt
+        case createdBy
+        case days
+        case likedBy
+        case acceptedUsers
+        case blockedUsers
     }
     
     /// Initializer membre à membre pour créer une instance d'Offre
-    /// Permet de créer des instances sans passer par un Decoder
     init(
         id: String,
         title: String,
@@ -73,7 +89,12 @@ struct Offre: Codable, Identifiable {
         likeCount: Int? = nil,
         userId: String? = nil,
         createdAt: Date? = nil,
-        updatedAt: Date? = nil
+        updatedAt: Date? = nil,
+        createdBy: CreatedBy? = nil,
+        days: Int? = nil,
+        likedBy: [String]? = nil,
+        acceptedUsers: [String]? = nil,
+        blockedUsers: [String]? = nil
     ) {
         self.id = id
         self.title = title
@@ -94,63 +115,106 @@ struct Offre: Codable, Identifiable {
         self.userId = userId
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.createdBy = createdBy
+        self.days = days
+        self.likedBy = likedBy
+        self.acceptedUsers = acceptedUsers
+        self.blockedUsers = blockedUsers
     }
     
-    /// Décodage personnalisé pour gérer les tags et exigences qui peuvent être des chaînes JSON
-    /// 
-    /// PROBLÈME RÉSOLU : Le backend peut renvoyer les tags/exigences comme des chaînes JSON encodées
-    /// au lieu de tableaux simples, ce qui cause un double encodage lors de la mise à jour.
-    ///
-    /// MODIFICATION : Ajout d'une logique de décodage personnalisée qui détecte si les tags/exigences
-    /// sont des chaînes JSON et les décode correctement en tableaux de chaînes.
+    /// Décodage personnalisé pour gérer les différents formats de données
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Required fields
         id = try container.decode(String.self, forKey: .id)
         title = try container.decode(String.self, forKey: .title)
         description = try container.decode(String.self, forKey: .description)
-        
-        // Décoder les tags en gérant le cas où ils sont des chaînes JSON
-        if let tagsString = try? container.decode(String.self, forKey: .tags),
-           let tagsData = tagsString.data(using: .utf8),
-           let decodedTags = try? JSONDecoder().decode([String].self, from: tagsData) {
-            tags = decodedTags
-        } else {
-            tags = try container.decodeIfPresent([String].self, forKey: .tags)
-        }
-        
-        // Décoder les exigences en gérant le cas où elles sont des chaînes JSON
-        if let exigencesString = try? container.decode(String.self, forKey: .exigences),
-           let exigencesData = exigencesString.data(using: .utf8),
-           let decodedExigences = try? JSONDecoder().decode([String].self, from: exigencesData) {
-            exigences = decodedExigences
-        } else {
-            exigences = try container.decodeIfPresent([String].self, forKey: .exigences)
-        }
-        
         location = try container.decode(OffreLocation.self, forKey: .location)
-        category = try container.decodeIfPresent(String.self, forKey: .category)
-        salary = try container.decodeIfPresent(String.self, forKey: .salary)
         company = try container.decode(String.self, forKey: .company)
-        expiresAt = try container.decodeIfPresent(String.self, forKey: .expiresAt)
-        jobType = try container.decodeIfPresent(String.self, forKey: .jobType)
-        shift = try container.decodeIfPresent(String.self, forKey: .shift)
-        isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
-        images = try container.decodeIfPresent([String].self, forKey: .images)
-        viewCount = try container.decodeIfPresent(Int.self, forKey: .viewCount)
-        likeCount = try container.decodeIfPresent(Int.self, forKey: .likeCount)
-        userId = try container.decodeIfPresent(String.self, forKey: .userId)
-        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
-        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
+        
+        // Optional fields with flexible decoding
+        tags = try? container.decodeIfPresent([String].self, forKey: .tags)
+        exigences = try? container.decodeIfPresent([String].self, forKey: .exigences)
+        category = try? container.decodeIfPresent(String.self, forKey: .category)
+        salary = try? container.decodeIfPresent(String.self, forKey: .salary)
+        expiresAt = try? container.decodeIfPresent(String.self, forKey: .expiresAt)
+        jobType = try? container.decodeIfPresent(String.self, forKey: .jobType)
+        shift = try? container.decodeIfPresent(String.self, forKey: .shift)
+        isActive = try? container.decodeIfPresent(Bool.self, forKey: .isActive)
+        images = try? container.decodeIfPresent([String].self, forKey: .images)
+        viewCount = try? container.decodeIfPresent(Int.self, forKey: .viewCount)
+        likeCount = try? container.decodeIfPresent(Int.self, forKey: .likeCount)
+        
+        // Handle createdBy as complex object
+        createdBy = try? container.decodeIfPresent(CreatedBy.self, forKey: .createdBy)
+        
+        // Handle userId/createdBy mapping - if createdBy exists, use its ID
+        if let createdByValue = createdBy {
+            userId = createdByValue.id
+        } else {
+            userId = try? container.decodeIfPresent(String.self, forKey: .userId)
+        }
+        
+        // Additional fields from MongoDB
+        days = try? container.decodeIfPresent(Int.self, forKey: .days)
+        likedBy = try? container.decodeIfPresent([String].self, forKey: .likedBy)
+        acceptedUsers = try? container.decodeIfPresent([String].self, forKey: .acceptedUsers)
+        blockedUsers = try? container.decodeIfPresent([String].self, forKey: .blockedUsers)
+        
+        // Date fields
+        createdAt = try? container.decodeIfPresent(Date.self, forKey: .createdAt)
+        updatedAt = try? container.decodeIfPresent(Date.self, forKey: .updatedAt)
+    }
+}
+
+/// Structure représentant l'utilisateur qui a créé l'offre
+struct CreatedBy: Codable {
+    let id: String
+    let nom: String
+    let email: String
+    let contact: String?
+    let image: String?
+    let modeExamens: Bool?
+    let is_archive: Bool?
+    let TrustXP: Int?
+    let is_Organization: Bool?
+    
+    enum CodingKeys: String, CodingKey {
+        case id = "_id"
+        case nom
+        case email
+        case contact
+        case image
+        case modeExamens
+        case is_archive
+        case TrustXP
+        case is_Organization
     }
 }
 
 /// Structure représentant la localisation d'une offre
-/// Correspond à l'objet location dans les DTOs backend
 struct OffreLocation: Codable {
     let address: String
     let city: String?
     let country: String?
     let coordinates: Coordinates?
+    
+    // Flexible initializer for location
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        address = try container.decode(String.self, forKey: .address)
+        city = try? container.decodeIfPresent(String.self, forKey: .city)
+        country = try? container.decodeIfPresent(String.self, forKey: .country)
+        coordinates = try? container.decodeIfPresent(Coordinates.self, forKey: .coordinates)
+    }
+    
+    init(address: String, city: String? = nil, country: String? = nil, coordinates: Coordinates? = nil) {
+        self.address = address
+        self.city = city
+        self.country = country
+        self.coordinates = coordinates
+    }
     
     enum CodingKeys: String, CodingKey {
         case address
@@ -164,6 +228,11 @@ struct OffreLocation: Codable {
 struct Coordinates: Codable {
     let lat: Double
     let lng: Double
+    
+    enum CodingKeys: String, CodingKey {
+        case lat
+        case lng
+    }
 }
 
 /// DTO pour créer une nouvelle offre
@@ -212,7 +281,7 @@ struct CreateOffreRequest: Codable {
     }
     
     /// Encodage personnalisé pour exclure les champs nil
-    /// 
+    ///
     /// PROBLÈME RÉSOLU : Le backend peut rejeter les requêtes contenant des champs null.
     /// Cette méthode garantit que seuls les champs non-nil sont envoyés dans la requête.
     ///
@@ -322,7 +391,7 @@ struct UpdateOffreRequest: Codable {
     }
     
     /// Encodage personnalisé pour exclure les champs nil du JSON lors des mises à jour
-    /// 
+    ///
     /// PROBLÈME RÉSOLU : Lors des mises à jour partielles (PATCH), envoyer des champs null
     /// peut causer des erreurs 403 ou des problèmes de validation côté backend.
     /// Cette méthode garantit qu'on n'envoie que les champs modifiés (non-nil).
@@ -398,4 +467,5 @@ struct UpdateOffreRequest: Codable {
         case likeCount
     }
 }
+
 

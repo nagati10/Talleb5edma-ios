@@ -7,12 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		18305F2D2EC10E020047DE66 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 18305F2C2EC10E020047DE66 /* GoogleSignIn */; };
-		18305F2F2EC10E020047DE66 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 18305F2E2EC10E020047DE66 /* GoogleSignInSwift */; };
+		8B0CC3832EDDB0AC0012511F /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 8B0CC3822EDDB0AC0012511F /* SocketIO */; };
+		8B0CC3862EDDB1AF0012511F /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 8B0CC3852EDDB1AF0012511F /* SocketIO */; };
+		8B0CC49D2EDDC59E0012511F /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 8B0CC49C2EDDC59E0012511F /* WebRTC */; };
+		8BA2C0352EDE8B0900762DAA /* Taleb-5edma-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 8BA2C0342EDE8B0900762DAA /* Taleb-5edma-Info.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		18305ECD2EC0C2730047DE66 /* Taleb_5edma.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Taleb_5edma.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8BA2C0342EDE8B0900762DAA /* Taleb-5edma-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Taleb-5edma-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -24,8 +27,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				18305F2D2EC10E020047DE66 /* GoogleSignIn in Frameworks */,
-				18305F2F2EC10E020047DE66 /* GoogleSignInSwift in Frameworks */,
+				8B0CC3832EDDB0AC0012511F /* SocketIO in Frameworks */,
+				8B0CC49D2EDDC59E0012511F /* WebRTC in Frameworks */,
+				8B0CC3862EDDB1AF0012511F /* SocketIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -36,7 +40,9 @@
 			isa = PBXGroup;
 			children = (
 				18305ECF2EC0C2730047DE66 /* Taleb_5edma */,
+				8B0CC3842EDDB1AF0012511F /* Frameworks */,
 				18305ECE2EC0C2730047DE66 /* Products */,
+				8BA2C0342EDE8B0900762DAA /* Taleb-5edma-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -46,6 +52,13 @@
 				18305ECD2EC0C2730047DE66 /* Taleb_5edma.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		8B0CC3842EDDB1AF0012511F /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -67,10 +80,6 @@
 				18305ECF2EC0C2730047DE66 /* Taleb_5edma */,
 			);
 			name = Taleb_5edma;
-			packageProductDependencies = (
-				18305F2C2EC10E020047DE66 /* GoogleSignIn */,
-				18305F2E2EC10E020047DE66 /* GoogleSignInSwift */,
-			);
 			productName = Taleb_5edma;
 			productReference = 18305ECD2EC0C2730047DE66 /* Taleb_5edma.app */;
 			productType = "com.apple.product-type.application";
@@ -83,7 +92,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2600;
+				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					18305ECC2EC0C2730047DE66 = {
 						CreatedOnToolsVersion = 26.0.1;
@@ -101,7 +110,8 @@
 			mainGroup = 18305EC42EC0C2730047DE66;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				18305F2B2EC10E020047DE66 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				8B0CC3812EDDB0AC0012511F /* XCRemoteSwiftPackageReference "socket" */,
+				8B0CC49B2EDDC59E0012511F /* XCRemoteSwiftPackageReference "WebRTC" */,
 			);
 			productRefGroup = 18305ECE2EC0C2730047DE66 /* Products */;
 			projectDirPath = "";
@@ -117,6 +127,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8BA2C0352EDE8B0900762DAA /* Taleb-5edma-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -191,6 +202,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -247,6 +259,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -259,6 +272,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FHGN8G8KXV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Taleb-5edma-Info.plist";
@@ -267,7 +281,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -292,6 +306,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FHGN8G8KXV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Taleb-5edma-Info.plist";
@@ -300,7 +315,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -342,26 +357,39 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		18305F2B2EC10E020047DE66 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+		8B0CC3812EDDB0AC0012511F /* XCRemoteSwiftPackageReference "socket" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/google/GoogleSignIn-iOS.git";
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift/";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+		8B0CC49B2EDDC59E0012511F /* XCRemoteSwiftPackageReference "WebRTC" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stasel/WebRTC.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 9.0.0;
+				minimumVersion = 125.0.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		18305F2C2EC10E020047DE66 /* GoogleSignIn */ = {
+		8B0CC3822EDDB0AC0012511F /* SocketIO */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 18305F2B2EC10E020047DE66 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
-			productName = GoogleSignIn;
+			package = 8B0CC3812EDDB0AC0012511F /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
 		};
-		18305F2E2EC10E020047DE66 /* GoogleSignInSwift */ = {
+		8B0CC3852EDDB1AF0012511F /* SocketIO */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 18305F2B2EC10E020047DE66 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
-			productName = GoogleSignInSwift;
+			package = 8B0CC3812EDDB0AC0012511F /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
+		8B0CC49C2EDDC59E0012511F /* WebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8B0CC49B2EDDC59E0012511F /* XCRemoteSwiftPackageReference "WebRTC" */;
+			productName = WebRTC;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

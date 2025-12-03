@@ -17,5 +17,11 @@
             </array>
         </dict>
     </array>
+    <key>NSCameraUsageDescription</key>
+    <string>Nous avons besoin d'accéder à votre caméra pour les appels vidéo.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Nous avons besoin d'accéder à votre microphone pour envoyer des messages vocaux et les appels audio.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Nous avons besoin d'accéder à votre galerie pour envoyer des photos et vidéos.</string>
 </dict>
 </plist>

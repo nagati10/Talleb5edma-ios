@@ -8,7 +8,6 @@
 import Foundation
 
 /// Modèle représentant un chat entre un utilisateur et une entreprise
-/// Correspond aux DTOs du backend (CreateChatDto, UpdateChatDto)
 struct Chat: Codable, Identifiable {
     let id: String
     let entreprise: String?  // ID de l'entreprise
@@ -34,16 +33,16 @@ struct Chat: Codable, Identifiable {
 /// Modèle représentant un message dans un chat
 struct Message: Codable, Identifiable {
     let id: String
-    let chatId: String
-    let senderId: String
+    let chatId: String?
+    let senderId: String?
     let content: String
     let type: MessageType
     let mediaUrl: String?
     let fileName: String?
-    let fileSize: Int?
-    let duration: Double?  // Pour audio/video en secondes
+    let fileSize: String?
+    let duration: String?
     let thumbnail: String?
-    let replyTo: String?  // ID du message auquel on répond
+    let replyTo: String?
     let isRead: Bool?
     let createdAt: Date?
     let updatedAt: Date?
@@ -51,7 +50,7 @@ struct Message: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id = "_id"
         case chatId
-        case senderId
+        case sender  // Changed from senderId to sender to match API response
         case content
         case type
         case mediaUrl
@@ -64,39 +63,165 @@ struct Message: Codable, Identifiable {
         case createdAt
         case updatedAt
     }
+    
+    // Nested structure to decode the sender object
+    private struct SenderObject: Codable {
+        let id: String
+        
+        enum CodingKeys: String, CodingKey {
+            case id = "_id"
+        }
+    }
+    
+    // Custom decoder to handle nested sender object
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        content = try container.decode(String.self, forKey: .content)
+        type = try container.decode(MessageType.self, forKey: .type)
+        
+        // Optional fields
+        chatId = try? container.decodeIfPresent(String.self, forKey: .chatId)
+        
+        // Parse sender - can be either a string ID or an object with _id
+        if let senderObject = try? container.decodeIfPresent(SenderObject.self, forKey: .sender) {
+            // API returns sender as an object: {"_id": "...", "nom": "...", ...}
+            senderId = senderObject.id
+        } else if let senderString = try? container.decodeIfPresent(String.self, forKey: .sender) {
+            // Fallback: sender might be just a string ID
+            senderId = senderString
+        } else {
+            senderId = nil
+        }
+        
+        mediaUrl = try? container.decodeIfPresent(String.self, forKey: .mediaUrl)
+        fileName = try? container.decodeIfPresent(String.self, forKey: .fileName)
+        fileSize = try? container.decodeIfPresent(String.self, forKey: .fileSize)
+        duration = try? container.decodeIfPresent(String.self, forKey: .duration)
+        thumbnail = try? container.decodeIfPresent(String.self, forKey: .thumbnail)
+        replyTo = try? container.decodeIfPresent(String.self, forKey: .replyTo)
+        isRead = try? container.decodeIfPresent(Bool.self, forKey: .isRead)
+        createdAt = try? container.decodeIfPresent(Date.self, forKey: .createdAt)
+        updatedAt = try? container.decodeIfPresent(Date.self, forKey: .updatedAt)
+    }
+    
+    // Custom encoder to satisfy Encodable protocol
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(id, forKey: .id)
+        try container.encode(content, forKey: .content)
+        try container.encode(type, forKey: .type)
+        
+        // Optional fields
+        try container.encodeIfPresent(chatId, forKey: .chatId)
+        try container.encodeIfPresent(senderId, forKey: .sender)  // Encode senderId as "sender"
+        try container.encodeIfPresent(mediaUrl, forKey: .mediaUrl)
+        try container.encodeIfPresent(fileName, forKey: .fileName)
+        try container.encodeIfPresent(fileSize, forKey: .fileSize)
+        try container.encodeIfPresent(duration, forKey: .duration)
+        try container.encodeIfPresent(thumbnail, forKey: .thumbnail)
+        try container.encodeIfPresent(replyTo, forKey: .replyTo)
+        try container.encodeIfPresent(isRead, forKey: .isRead)
+        try container.encodeIfPresent(createdAt, forKey: .createdAt)
+        try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
+    }
 }
 
 /// Type de message
-/// Note: Défini dans ChatModels.swift pour éviter les conflits
-/// Utilisez MessageType depuis ChatModels.swift
-typealias MessageType = ChatModels.MessageType
+enum MessageType: String, Codable {
+    case text = "text"
+    case image = "image"
+    case audio = "audio"
+    case video = "video"
+    case file = "file"
+    case emoji = "emoji"
+}
+
+// MARK: - Message Convenience Initializer
+extension Message {
+    /// Convenience initializer for creating Message instances programmatically
+    init(
+        id: String,
+        chatId: String?,
+        senderId: String?,
+        content: String?,
+        type: MessageType,
+        mediaUrl: String? = nil,
+        fileName: String? = nil,
+        fileSize: String? = nil,
+        duration: String? = nil,
+        thumbnail: String? = nil,
+        replyTo: String? = nil,
+        isRead: Bool? = nil,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil
+    ) {
+        self.id = id
+        self.chatId = chatId
+        self.senderId = senderId
+        self.content = content ?? ""
+        self.type = type
+        self.mediaUrl = mediaUrl
+        self.fileName = fileName
+        self.fileSize = fileSize
+        self.duration = duration
+        self.thumbnail = thumbnail
+        self.replyTo = replyTo
+        self.isRead = isRead
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
 
 /// DTO pour créer un nouveau chat
-/// Note: Défini dans ChatModels.swift pour éviter les conflits
-/// Utilisez CreateChatRequest depuis ChatModels.swift
-typealias CreateChatRequest = ChatModels.CreateChatRequest
+struct CreateChatRequest: Codable {
+    let entreprise: String?
+    let offer: String?
+    
+    init(entreprise: String? = nil, offer: String? = nil) {
+        self.entreprise = entreprise
+        self.offer = offer
+    }
+    
+    /// Encodage personnalisé pour exclure les champs nil
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        // N'encoder que les champs qui ne sont pas nil
+        if let entreprise = entreprise {
+            try container.encode(entreprise, forKey: .entreprise)
+        }
+        if let offer = offer {
+            try container.encode(offer, forKey: .offer)
+        }
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case entreprise
+        case offer
+    }
+}
 
 /// DTO pour envoyer un message
-/// Note: Défini dans ChatModels.swift pour éviter les conflits
-/// Utilisez SendMessageRequest depuis ChatModels.swift
-/// Pour compatibilité avec l'ancien code, cette structure est conservée mais dépréciée
 struct SendMessageRequest: Codable {
     let content: String
     let type: MessageType
     let mediaUrl: String?
     let fileName: String?
-    let fileSize: Int?
-    let duration: Double?
+    let fileSize: String?
+    let duration: String?
     let thumbnail: String?
     let replyTo: String?
     
     init(
         content: String,
-        type: MessageType,
+        type: MessageType = .text,
         mediaUrl: String? = nil,
         fileName: String? = nil,
-        fileSize: Int? = nil,
-        duration: Double? = nil,
+        fileSize: String? = nil,
+        duration: String? = nil,
         thumbnail: String? = nil,
         replyTo: String? = nil
     ) {
@@ -110,13 +235,11 @@ struct SendMessageRequest: Codable {
         self.replyTo = replyTo
     }
     
-    /// Encodage personnalisé pour exclure les champs nil
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(content, forKey: .content)
         try container.encode(type.rawValue, forKey: .type)
         
-        // N'encoder les champs optionnels que s'ils ne sont pas nil
         if let mediaUrl = mediaUrl {
             try container.encode(mediaUrl, forKey: .mediaUrl)
         }
@@ -150,7 +273,6 @@ struct SendMessageRequest: Codable {
 }
 
 /// DTO pour mettre à jour un chat
-/// Correspond au UpdateChatDto du backend
 struct UpdateChatRequest: Codable {
     let entreprise: String?
     let offer: String?
@@ -204,12 +326,44 @@ struct UpdateChatRequest: Codable {
 }
 
 /// Réponse paginée pour les messages
+/// Réponse paginée pour les messages - UPDATED to match backend structure
 struct PaginatedMessagesResponse: Codable {
     let messages: [Message]
     let total: Int
-    let page: Int
-    let limit: Int
-    let hasMore: Bool
+    // Make page, limit, and hasMore optional to match backend response
+    let page: Int?
+    let limit: Int?
+    let hasMore: Bool?
+    
+    // Add a custom initializer for flexibility
+    init(messages: [Message], total: Int, page: Int? = nil, limit: Int? = nil, hasMore: Bool? = nil) {
+        self.messages = messages
+        self.total = total
+        self.page = page
+        self.limit = limit
+        self.hasMore = hasMore
+    }
+    
+    // Custom coding keys to handle the actual backend response
+    enum CodingKeys: String, CodingKey {
+        case messages
+        case total
+        case page
+        case limit
+        case hasMore
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        messages = try container.decode([Message].self, forKey: .messages)
+        total = try container.decode(Int.self, forKey: .total)
+        
+        // Optional fields - don't fail if they're missing
+        page = try? container.decodeIfPresent(Int.self, forKey: .page)
+        limit = try? container.decodeIfPresent(Int.self, forKey: .limit)
+        hasMore = try? container.decodeIfPresent(Bool.self, forKey: .hasMore)
+    }
 }
 
 /// Réponse pour vérifier si un appel est possible
@@ -217,4 +371,3 @@ struct CanCallResponse: Codable {
     let canCall: Bool
     let reason: String?
 }
-

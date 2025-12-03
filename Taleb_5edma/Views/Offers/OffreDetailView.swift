@@ -340,6 +340,13 @@ struct OffrePrerequisiteItem: View {
     }
 }
 
+// MARK: - Chat Navigation Helper
+
+struct ChatToNavigate: Identifiable {
+    let id: String  // This is the chatId
+    let offer: Offre?
+}
+
 // MARK: - Bottom Action Buttons
 
 struct OffreBottomActionButtons: View {
@@ -347,6 +354,12 @@ struct OffreBottomActionButtons: View {
     @EnvironmentObject var authService: AuthService
     @State private var showingMoreInfo = false
     @State private var showingApply = false
+    
+    // Chat list popup state for organizations
+    @State private var showChatListPopup = false
+    @State private var userChats: [ChatModels.GetUserChatsResponse] = []
+    @State private var isLoadingChats = false
+    @State private var chatLoadError: String?
     
     var body: some View {
         HStack(spacing: 12) {
@@ -368,8 +381,19 @@ struct OffreBottomActionButtons: View {
                 Text("Plus d'informations")
             }
             
-            Button(action: { showingApply = true }) {
-                Text("Postuler")
+            Button(action: {
+                // Check if current user owns this offer
+                let isOwner = offre.entrepriseId == authService.currentUser?.id
+                
+                if isOwner {
+                    // Organization: Show chat list
+                    loadUserChats()
+                } else {
+                    // Candidate: Open chat directly
+                    showingApply = true
+                }
+            }) {
+                Text("Discuter")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -384,11 +408,354 @@ struct OffreBottomActionButtons: View {
                     .cornerRadius(12)
             }
             .sheet(isPresented: $showingApply) {
-                ChatView(offre: offre)
-                    .environmentObject(authService)
+                ChatView(
+                    offre: offre,
+                    currentUserId: authService.currentUser?.id ?? UserDefaults.standard.string(forKey: "userId")
+                )
+                .environmentObject(authService)
+            }
+            .sheet(isPresented: $showChatListPopup) {
+                ChatListPopup(
+                    chats: userChats,
+                    loading: isLoadingChats,
+                    error: chatLoadError,
+                    offer: offre,
+                    onDismiss: {
+                        showChatListPopup = false
+                    }
+                )
+                .environmentObject(authService)
             }
         }
         .padding(.horizontal)
+    }
+    
+    // Load chats for organization's offer
+    private func loadUserChats() {
+        guard authService.authToken != nil else {
+            chatLoadError = "Non authentifié"
+            showChatListPopup = true
+            return
+        }
+        
+        // Show popup with loading state immediately
+        isLoadingChats = true
+        chatLoadError = nil
+        showChatListPopup = true
+        
+        Task {
+            do {
+                let chatService = ChatService()
+                // ChatService reads token from UserDefaults automatically
+                
+                let allChats = try await chatService.getMyChatsDetailed()
+                
+                // Filter chats by this offer ID
+                let filteredChats = allChats.filter { chat in
+                    chat.offer?.id == offre.id
+                }
+                
+                await MainActor.run {
+                    self.userChats = filteredChats
+                    self.isLoadingChats = false
+                }
+                
+                print("✅ Loaded \(filteredChats.count) chats for offer: \(offre.id)")
+            } catch {
+                await MainActor.run {
+                    self.chatLoadError = "Erreur: \(error.localizedDescription)"
+                    self.isLoadingChats = false
+                }
+                print("❌ Error loading chats: \(error)")
+            }
+        }
+    }
+}
+
+// MARK: - Chat List Popup for Organizations
+
+struct ChatListPopup: View {
+    let chats: [ChatModels.GetUserChatsResponse]
+    let loading: Bool
+    let error: String?
+    let offer: Offre?
+    let onDismiss: () -> Void
+    
+    @EnvironmentObject var authService: AuthService
+    @State private var chatToNavigate: ChatToNavigate? = nil
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppColors.backgroundGray.ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Header
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Conversations")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(AppColors.black)
+                            
+                            Spacer()
+                            
+                            Button(action: onDismiss) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(AppColors.mediumGray)
+                            }
+                        }
+                        
+                        if let offerTitle = offer?.title {
+                            Text(offerTitle)
+                                .font(.system(size: 14))
+                                .foregroundColor(AppColors.mediumGray)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding()
+                    .background(AppColors.white)
+                    
+                    Divider()
+                    
+                    // Content
+                    if loading {
+                        Spacer()
+                        VStack(spacing: 16) {
+                            ProgressView()
+                                .scaleEffect(1.5)
+                            Text("Chargement des conversations...")
+                                .font(.system(size: 14))
+                                .foregroundColor(AppColors.mediumGray)
+                        }
+                        Spacer()
+                    } else if let error = error {
+                        Spacer()
+                        VStack(spacing: 16) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 48))
+                                .foregroundColor(AppColors.primaryRed)
+                            Text("Erreur")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(AppColors.black)
+                            Text(error)
+                                .font(.system(size: 14))
+                                .foregroundColor(AppColors.mediumGray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                            
+                            Button(action: onDismiss) {
+                                Text("Fermer")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 32)
+                                    .padding(.vertical, 12)
+                                    .background(AppColors.primaryRed)
+                                    .cornerRadius(12)
+                            }
+                        }
+                        Spacer()
+                    } else if chats.isEmpty {
+                        Spacer()
+                        VStack(spacing: 16) {
+                            Image(systemName: "bubble.left.and.bubble.right")
+                                .font(.system(size: 48))
+                                .foregroundColor(AppColors.mediumGray)
+                            Text("Aucune conversation")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(AppColors.black)
+                            Text("Aucune conversation pour cette offre")
+                                .font(.system(size: 14))
+                                .foregroundColor(AppColors.mediumGray)
+                                .multilineTextAlignment(.center)
+                        }
+                        Spacer()
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(chats, id: \.id) { chat in
+                                    OffreDetailChatItem(chat: chat, onTap: {
+                                        print("🟦 Chat item tapped: \(chat.id)")
+                                        print("🟦 Candidate: \(chat.candidate?.nom ?? "unknown")")
+                                        print("🟦 Offer: \(chat.offer?.id ?? "unknown")")
+                                        // Set navigation target as single state update
+                                        chatToNavigate = ChatToNavigate(id: chat.id, offer: offer)
+                                        print("🟦 Navigation state set: chatToNavigate.id=\(chatToNavigate?.id ?? "nil")")
+                                    })
+                                }
+                            }
+                            .padding()
+                        }
+                    }
+                }
+            }
+            .navigationBarHidden(true)
+            .sheet(item: $chatToNavigate) { chatInfo in
+                // Find the full chat info to get candidate details
+                let chatDetails = chats.first(where: { $0.id == chatInfo.id })
+                ChatView(
+                    offre: chatInfo.offer,
+                    currentUserId: authService.currentUser?.id ?? UserDefaults.standard.string(forKey: "userId"),
+                    chatId: chatInfo.id,
+                    candidateInfo: chatDetails?.candidate
+                )
+                .environmentObject(authService)
+            }
+        }
+    }
+}
+
+// MARK: - Offre Detail Chat Item (renamed to avoid conflict)
+
+struct OffreDetailChatItem: View {
+    let chat: ChatModels.GetUserChatsResponse
+    let onTap: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Candidate Avatar with unread badge
+            ZStack(alignment: .topTrailing) {
+                if let imageUrl = chat.candidate?.image, !imageUrl.isEmpty {
+                    AsyncImage(url: URL(string: "\(APIConfig.baseURL)/\(imageUrl)")) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle()
+                            .fill(AppColors.mediumGray.opacity(0.3))
+                            .overlay(
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(AppColors.mediumGray)
+                            )
+                    }
+                    .frame(width: 50, height: 50)
+                    .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(AppColors.mediumGray.opacity(0.3))
+                        .frame(width: 50, height: 50)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .foregroundColor(AppColors.mediumGray)
+                        )
+                }
+                
+                // Unread badge
+                if let unreadCount = chat.unreadEntreprise, unreadCount > 0 {
+                    ZStack {
+                        Circle()
+                            .fill(AppColors.primaryRed)
+                            .frame(width: 20, height: 20)
+                        Text(unreadCount > 9 ? "9+" : "\(unreadCount)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                    .offset(x: 5, y: -5)
+                }
+            }
+            
+            // Chat Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(chat.candidate?.nom ?? "Candidat inconnu")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(AppColors.black)
+                    .lineLimit(1)
+                
+                if let lastMessage = chat.lastMessage, !lastMessage.isEmpty {
+                    Text(lastMessage)
+                        .font(.system(size: 14))
+                        .foregroundColor(AppColors.mediumGray)
+                        .lineLimit(1)
+                } else {
+                    Text("Aucun message")
+                        .font(.system(size: 14))
+                        .foregroundColor(AppColors.mediumGray.opacity(0.5))
+                        .italic()
+                }
+                
+                if let lastActivity = chat.lastActivity {
+                    Text(formatLastActivity(lastActivity))
+                        .font(.system(size: 12))
+                        .foregroundColor(AppColors.mediumGray.opacity(0.7))
+                }
+            }
+            
+            Spacer()
+            
+            // Message type indicator
+            if let messageType = chat.lastMessageType {
+                Image(systemName: getMessageTypeIcon(messageType))
+                    .font(.system(size: 16))
+                    .foregroundColor(AppColors.mediumGray)
+            }
+        }
+        .padding()
+        .background(AppColors.white)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .onTapGesture {
+            onTap()
+        }
+    }
+}
+
+// MARK: - Helper Functions
+
+/// Formats ISO8601 date string to relative time (e.g., "Il y a 2h")
+private func formatLastActivity(_ isoDate: String) -> String {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    
+    guard let date = formatter.date(from: isoDate) else {
+        // Try alternative format without fractional seconds
+        formatter.formatOptions = [.withInternetDateTime]
+        guard let date = formatter.date(from: isoDate) else {
+            return ""
+        }
+        return formatRelativeTime(from: date)
+    }
+    
+    return formatRelativeTime(from: date)
+}
+
+private func formatRelativeTime(from date: Date) -> String {
+    let now = Date()
+    let difference = now.timeIntervalSince(date)
+    
+    let minutes = Int(difference / 60)
+    let hours = Int(difference / 3600)
+    let days = Int(difference / 86400)
+    
+    if minutes < 1 {
+        return "À l'instant"
+    } else if minutes < 60 {
+        return "Il y a \(minutes) min"
+    } else if hours < 24 {
+        return "Il y a \(hours) h"
+    } else if days < 7 {
+        return "Il y a \(days) j"
+    } else {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "dd/MM/yy"
+        return dateFormatter.string(from: date)
+    }
+}
+
+/// Returns SF Symbol name for message type
+private func getMessageTypeIcon(_ type: String) -> String {
+    switch type.lowercased() {
+    case "text":
+        return "text.bubble"
+    case "image":
+        return "photo"
+    case "video":
+        return "video.fill"
+    case "audio":
+        return "mic.fill"
+    case "emoji":
+        return "face.smiling"
+    default:
+        return "bubble.left"
     }
 }
 

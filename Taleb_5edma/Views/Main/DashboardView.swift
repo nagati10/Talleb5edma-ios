@@ -18,7 +18,7 @@ struct DashboardView: View {
     @EnvironmentObject var authService: AuthService
     
     // États locaux pour piloter la navigation et les affichages contextuels de la vue
-    @State private var selectedTab = 0
+    @State private var selectedTab = 3
     @State private var showingNotifications = false
     @State private var showingProfile = false
     @State private var showingMenu = false
