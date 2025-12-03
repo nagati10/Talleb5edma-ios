@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Identifiant Client Google -->
+    <key>GIDClientID</key>
+    <string>882792179103-k0qi2c64l0rj0vhhofpu0st0m3gkuah8jd.apps.googleusercontent.com</string>
+
+    <!-- Configuration du schéma d’URL pour Google Sign-In -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <!-- REVERSED_CLIENT_ID -->
+                <string>com.googleusercontent.apps.882792179103-k0qi2c64l0rj0vhhofpu0st0m3gkuah8jd</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>
